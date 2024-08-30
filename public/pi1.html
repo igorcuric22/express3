@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Stream</title>
+    <script src="recordrtc.js"></script>
+</head>
+<body>
+    <video id="video" width="640" height="480" autoplay></video>
+    <button id="start">Start Recording</button>
+    <button id="stop">Stop Recording</button>
+    <button id="send">Send to Server</button>
+    <script>
+        const video = document.getElementById('video');
+        const startButton = document.getElementById('start');
+        const stopButton = document.getElementById('stop');
+        const sendButton = document.getElementById('send');
+
+        let recorder = null;
+        let stream = null;
+        let recordedChunks = [];
+
+        startButton.addEventListener('click', () => {
+            startRecording();
+        });
+
+        stopButton.addEventListener('click', () => {
+            stopRecording();
+        });
+
+        sendButton.addEventListener('click', () => {
+            sendToServer();
+        });
+
+        async function startRecording() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+
+                recorder = new RecordRTCPromisesHandler(stream, {
+                    type: 'video',
+                    mimeType: 'video/mp4',
+                    bitsPerSecond: 128000
+                });
+
+                recorder.startRecording();
+
+                video.srcObject = stream;
+                console.log('Recording started');
+            } catch (error) {
+                console.error('Error accessing media devices:', error);
+            }
+        }
+
+        async function stopRecording() {
+            try {
+                await recorder.stopRecording();
+                stream.getTracks().forEach(track => track.stop());
+
+                recordedChunks = recorder.getBlob();
+                video.src = URL.createObjectURL(recordedChunks);
+
+                console.log('Recording stopped');
+            } catch (error) {
+                console.error('Error stopping recording:', error);
+            }
+        }
+
+        function sendToServer() {
+            if (!recordedChunks) {
+                console.error('No recorded chunks to send');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('video', recordedChunks, 'recorded.mp4');
+
+            fetch('http://localhost:3000/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Video sent successfully:', data);
+            })
+            .catch(error => {
+                console.error('Error sending video:', error);
+            });
+        }
+    </script>
+</body>
+</html>

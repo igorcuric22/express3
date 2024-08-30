@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Webcam to Express Server</title>
+</head>
+<body>
+    <video id="video" width="320" height="240" autoplay></video>
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn">Stop Recording</button>
+    <video id="playback" width="320" height="240" controls></video>
+
+    <script>
+        const video = document.getElementById('video');
+        const playback = document.getElementById('playback');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        let mediaRecorder;
+        let recordedChunks = [];
+
+        async function startRecording() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = event => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                recordedChunks = [];
+
+                // Send video data to the server
+                const formData = new FormData();
+                formData.append('video', blob, 'webcam-video.webm');
+
+                await fetch('http://localhost:3000/upload', {
+                    method: 'POST',
+                    body: blob,
+                });
+
+                // Fetch video data back from the server
+                const response = await fetch('http://localhost:3000/video');
+                const videoBlob = await response.blob();
+                const videoUrl = URL.createObjectURL(videoBlob);
+                playback.src = videoUrl;
+                playback.load();
+                playback.play();
+            };
+
+            mediaRecorder.start();
+        }
+
+        startBtn.addEventListener('click', startRecording);
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+            }
+        });
+    </script>
+</body>
+</html>

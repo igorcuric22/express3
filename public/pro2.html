@@ -1,0 +1,123 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Video Player with MSE</title>
+</head>
+<body>
+  <video controls></video>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var video = document.querySelector('video');
+      var assetURL = '/video'; // Update with your server path
+      var mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+
+      if ('MediaSource' in window && MediaSource.isTypeSupported(mimeCodec)) {
+        var mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+        mediaSource.addEventListener('sourceopen', sourceOpen);
+      } else {
+        console.error('Unsupported MIME type or codec: ', mimeCodec);
+      }
+
+      function sourceOpen(_) {
+        var mediaSource = this;
+        var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
+
+        fetchAB(assetURL)
+          .then(buf => {
+            sourceBuffer.addEventListener('updateend', function (_) {
+              mediaSource.endOfStream();
+              video.play();
+            });
+            sourceBuffer.appendBuffer(buf);
+          })
+          .catch(error => {
+            console.error('Error fetching video:', error);
+          });
+      }
+
+      function fetchAB(url) {
+        return fetch(url)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Network response was not ok');
+            }
+            return response.arrayBuffer();
+          })
+          .catch(error => {
+            console.error('Fetch error:', error);
+          });
+      }
+    });
+  </script>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Video Player with MSE</title>
+</head>
+<body>
+  <video controls></video>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var video = document.querySelector('video');
+      var assetURL = '/video'; // Update with your server path
+      var mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+
+      if ('MediaSource' in window && MediaSource.isTypeSupported(mimeCodec)) {
+        var mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+        mediaSource.addEventListener('sourceopen', sourceOpen);
+      } else {
+        console.error('Unsupported MIME type or codec: ', mimeCodec);
+      }
+
+      function sourceOpen(_) {
+        var mediaSource = this;
+        var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
+
+        fetchAB(assetURL)
+          .then(buf => {
+            sourceBuffer.addEventListener('updateend', function (_) {
+                console.log(buf);
+              if (!sourceBuffer.updating && mediaSource.readyState === 'open') {
+                mediaSource.endOfStream();
+                // Attempt to play video in response to a user interaction
+                video.addEventListener('click', function () {
+                  if (video.paused) {
+                    video.play().catch(error => {
+                      console.error('Play error:', error);
+                    });
+                  }
+                });
+              }
+            });
+            sourceBuffer.appendBuffer(buf);
+          })
+          .catch(error => {
+            console.error('Error fetching video:', error);
+          });
+      }
+
+      function fetchAB(url) {
+        return fetch(url)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Network response was not ok');
+            }
+            return response.arrayBuffer();
+          })
+          .catch(error => {
+            console.error('Fetch error:', error);
+          });
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+const fs = require('fs')
+const bodyParser = require('body-parser')
+const express = require('express')
+const fileUpload = require('express-fileupload')
+
+const app = express()
+app.use(bodyParser.urlencoded())
+app.use(bodyParser.json())
+app.use(fileUpload({
+    useTempFiles: true,
+    tempFileDir: '/tmp/'
+}))
+
+const hostname = '127.0.0.1'
+const port = 4000
+
+// CODE GOES HERE
+
+const makeDirnameFilename = (name, chunk) => {
+    const dirname = `/app/upload/${name}`
+    const filename = `${dirname}/${chunk}.webm`
+    return [dirname, filename]
+}
+
+app.get("/", function (req, res) {
+    res.sendFile(__dirname + "/file3.html");
+});
+
+app.get('/api/download', (req, res) => {
+    const query = req.query
+    const [dirname, filename] = makeDirnameFilename(query.name, query.chunk)
+
+    fs.promises.readFile(filename)
+        .then((file) => {
+            res.statusCode = 200
+            res.write(file, 'binary')
+            res.end()
+        }).catch(() => {
+        res.statusCode = 204
+        res.end()
+    })
+})
+app.put('/api/upload', (req, res) => {
+    const file = req.files.file
+    const [dirname, filename] = makeDirnameFilename(req.body.name, req.body.chunk)
+
+    fs.promises.mkdir(dirname, {recursive: true})
+        .then(
+            file.mv(filename)
+        )
+
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'text/plain')
+    res.end('Upload\n')
+})
+app.listen(port, hostname, () => {
+    console.log('Starting development server')
+})
+
+////////////////////////////////////////////////////////////////////////////////////////
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .center {
+            display: flex;
+            justify-content:center;
+            align-items: center;
+            width:100px;
+            height:100px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="center">
+    <video id="myvideo" width="1000" height="600" controls="controls">
+       
+        Your browser does not support HTML5 video.
+      </video>
+    </div>
+    <script>
+  function permittedGetUserMedia() {
+    return !!(navigator.mediaDevices &&
+        navigator.mediaDevices.getUserMedia);
+}
+
+if (permittedGetUserMedia()) {
+    const video = document.querySelector('video');
+    const mediaSource = new MediaSource();
+    video.src = URL.createObjectURL(mediaSource);
+
+    navigator.mediaDevices.getUserMedia({
+        video: true
+    }).then((stream) => processStream(stream, mediaSource));
+}
+
+function processStream(stream, mediaSource) {
+    registerRecord(stream)
+    registerPlayer(mediaSource)
+}
+
+function registerRecord(stream) {
+    const mediaRecorder = new MediaRecorder(stream)
+    let countUploadChunk = 0
+
+    mediaRecorder.ondataavailable = (data) => {
+        sendFile(data.data, countUploadChunk)
+        countUploadChunk++
+    }
+    mediaRecorder.start()
+
+    setInterval(() => {
+        mediaRecorder.requestData()
+    }, 2000)
+}
+
+function getName() {
+    return +new Date()
+}
+
+const STREAM_NAME = getName()
+
+function sendFile(file, chunkNumber) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('name', STREAM_NAME);
+    formData.append('chunk', chunkNumber);
+    fetch('/api/upload', {
+        method: 'PUT',
+        body: formData
+    });
+}
+function registerPlayer(mediaSource) {
+    const videoBuffer = mediaSource.addSourceBuffer('video/webm;codecs=vp8');
+    let countDownloadChunk = 0
+
+    setInterval(() => {
+        fetch(`/api/download?name=${STREAM_NAME}&chunk=${countDownloadChunk}`)
+            .then((response) => {
+                if (response.status !== 200) {
+                    throw Error('no such file')
+                }
+                return response.arrayBuffer()
+            }).then((buffer) => {
+                countDownloadChunk++
+                videoBuffer.appendBuffer(buffer)
+            }).catch(() => {})
+    }, 1000)
+}
+
+    </script>
+    
+</body>
+</html>
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+

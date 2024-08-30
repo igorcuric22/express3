@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Play Video from Chunks</title>
+</head>
+<body>
+    <input type="file" id="fileInput" accept="video/mp4" />
+    <video id="videoPlayer" controls></video>
+    
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect, false);
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const chunkSize = 1024 * 1024; // 1MB chunks
+                const fileSize = file.size;
+                const chunks = [];
+
+                let offset = 0;
+
+                while (offset < fileSize) {
+                    const chunk = file.slice(offset, offset + chunkSize);
+                    chunks.push(chunk);
+                    offset += chunkSize;
+                }
+
+                console.log('Total chunks:', chunks.length);
+
+                // Combine chunks into a single Blob
+                const combinedBlob = new Blob(chunks, { type: file.type });
+
+                // Create an object URL for the Blob
+                const videoUrl = URL.createObjectURL(combinedBlob);
+
+                // Set the video URL as the source of the video element
+                const videoPlayer = document.getElementById('videoPlayer');
+                videoPlayer.src = videoUrl;
+                videoPlayer.load();
+                videoPlayer.play();
+            }
+        }
+    </script>
+</body>
+</html>

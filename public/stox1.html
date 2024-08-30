@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Capture</title>
+</head>
+<body>
+    <video id="video" width="640" height="480" autoplay></video>
+    <button onclick="startRecording()">Start Recording</button>
+    <button onclick="stopRecording()">Stop Recording</button>
+
+    <script>
+
+let mediaStream = null;
+let mediaRecorder = null;
+let chunks = [];
+let chunkNumber = 0;
+
+// Access the device camera and stream to video element
+async function initWebcam() {
+    try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        document.getElementById('video').srcObject = mediaStream;
+    } catch (err) {
+        console.error('Error accessing webcam: ', err);
+    }
+}
+
+// Start recording the video
+function startRecording() {
+    if (!mediaStream) {
+        alert('Webcam not initialized.');
+        return;
+    }
+
+    mediaRecorder = new MediaRecorder(mediaStream);
+
+    mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+            chunks.push(event.data);
+            sendChunk(event.data);
+        }
+    };
+
+    mediaRecorder.start(2000); // Record in 2-second chunks
+}
+
+// Stop recording the video
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+    }
+}
+
+// Send video chunk to the server
+function sendChunk(chunk) {
+    const STREAM_NAME = `${Date.now()}`; 
+
+    const formData = new FormData();
+    formData.append('file', chunk);
+    formData.append('name', STREAM_NAME);
+    formData.append('chunk', chunkNumber);
+
+    fetch('/api/upload', {
+        method: 'PUT',
+        body: chunk
+    }).then(response => {
+        if (response.ok) {
+            console.log('Chunk uploaded successfully.');
+        } else {
+            console.error('Error uploading chunk.');
+        }
+    }).catch(error => {
+        console.error('Error uploading chunk:', error);
+    });
+
+    chunkNumber++;
+}
+
+// Initialize the webcam once when the page loads
+window.onload = initWebcam;
+
+
+
+    </script>
+</body>
+</html>

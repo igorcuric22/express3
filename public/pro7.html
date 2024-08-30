@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP4 ArrayBuffer to Video with MediaSource in Chunks</title>
+</head>
+<body>
+    <video id="videoPlayer" controls></video>
+    <script>
+        async function fetchChunk(url, start, end) {
+            const response = await fetch(url, {
+                headers: {
+                    'Range': `bytes=${start}-${end}`
+                }
+            });
+            return response.arrayBuffer();
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const videoElement = document.getElementById('videoPlayer');
+            const videoUrl = '/video'; // Replace with your video URL
+            const chunkSize = 1024 * 1024; // 1 MB chunk size
+            let start = 0;
+            let end = chunkSize - 1;
+
+            const mediaSource = new MediaSource();
+            videoElement.src = URL.createObjectURL(mediaSource);
+
+            mediaSource.addEventListener('sourceopen', async () => {
+                const sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
+                let fetching = false;
+
+                async function appendNextChunk() {
+                    if (fetching || sourceBuffer.updating) return;
+                    fetching = true;
+
+                    try {
+                        const chunk = await fetchChunk(videoUrl, start, end);
+                        start += chunk.byteLength;
+                        end = start + chunkSize - 1;
+                        
+                        sourceBuffer.appendBuffer(chunk);
+                        fetching = false;
+
+                        if (chunk.byteLength < chunkSize) {
+                            mediaSource.endOfStream();
+                        }
+                    } catch (error) {
+                        console.error('Error fetching or appending video chunk:', error);
+                        fetching = false;
+                    }
+                }
+
+                sourceBuffer.addEventListener('updateend', appendNextChunk);
+
+                appendNextChunk();
+            });
+        });
+    </script>
+</body>
+</html>

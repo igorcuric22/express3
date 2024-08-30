@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Capture</title>
+</head>
+<body>
+    <video id="video" width="640" height="480" autoplay></video>
+    <button onclick="captureAndSend()">Capture and Send</button>
+
+    <script>
+        let mediaStream = null;
+        let mediaRecorder = null;
+        let chunks = [];
+        let chunkNumber=0;
+
+        // Access the device camera and stream to video element
+        async function initWebcam() {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                document.getElementById('video').srcObject = mediaStream;
+            } catch (err) {
+                console.error('Error accessing webcam: ', err);
+            }
+        
+
+        
+        if (!mediaStream) {
+                alert('Webcam not initialized.');
+                return;
+        }
+
+        
+        
+        mediaRecorder = new MediaRecorder(mediaStream);
+
+        let pp=null;
+
+        mediaRecorder.ondataavailable = async (event) => {
+            if (event.data.size > 0) {
+                chunks.push(event.data);
+                
+                console.log(event.data);
+                pp=event.data;
+            }
+        }  
+        mediaRecorder.start();
+
+            const file=pp;
+            const STREAM_NAME=+new Date(); 
+
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('name', STREAM_NAME);
+            formData.append('chunk', chunkNumber);
+            fetch('/api/upload', {
+                        method: 'PUT',
+                        body: formData
+                    });
+
+             
+            chunkNumber++;
+            
+            console.log("igor"+chunkNumber);
+           
+        }
+
+        setInterval(async ()=>{await initWebcam()}, 2000);
+
+        
+    </script>
+</body>
+</html>

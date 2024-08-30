@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediaSource Example with Custom Event</title>
+</head>
+<body>
+  <video controls width="640" height="360"></video>
+
+  <script>
+    var video = document.querySelector('video');
+    var assetURL = '/video'; // URL to your video file
+    var mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+
+    // Check if MediaSource is supported and if the codec is supported
+    if ('MediaSource' in window && MediaSource.isTypeSupported(mimeCodec)) {
+      var mediaSource = new MediaSource();
+      video.src = URL.createObjectURL(mediaSource);
+
+      mediaSource.addEventListener('sourceopen', sourceOpen);
+
+      // Add event listener for custom startstreaming event
+      mediaSource.addEventListener('startstreaming', onStartStreamingHandler);
+
+    } else {
+      console.error('Unsupported MIME type or codec: ', mimeCodec);
+    }
+
+    function sourceOpen(event) {
+      var mediaSource = event.target;
+      var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
+
+      fetchArrayBuffer(assetURL, function(buffer) {
+        sourceBuffer.addEventListener('updateend', function() {
+          // Check if the mediaSource is still open before ending the stream
+          if (mediaSource.readyState === 'open') {
+            mediaSource.endOfStream();
+            // Dispatch the custom startstreaming event
+            var startStreamingEvent = new Event('startstreaming');
+            mediaSource.dispatchEvent(startStreamingEvent);
+          }
+        });
+
+        sourceBuffer.appendBuffer(buffer);
+      });
+    }
+
+    function fetchArrayBuffer(url, callback) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', url);
+      xhr.responseType = 'arraybuffer';
+
+      xhr.onload = function() {
+        callback(xhr.response);
+      };
+
+      xhr.send();
+    }
+
+    // Custom event handler for startstreaming event
+    function onStartStreamingHandler(event) {
+      console.log('Streaming started');
+      video.play();
+    }
+  </script>
+</body>
+</html>

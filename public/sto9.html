@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Capture</title>
+</head>
+<body>
+    <video id="video" width="640" height="480" autoplay></video>
+    <button id="startButton" onclick="startRecording()">Start Recording</button>
+    <button id="stopButton" onclick="stopRecording()" disabled>Stop Recording</button>
+    <p id="status"></p>
+
+    <script>
+        let mediaStream = null;
+        let mediaRecorder = null;
+        let chunks = [];
+        let chunkNumber = 0;
+        const chunkDuration = 2000; // Duration of each chunk in milliseconds
+        let isRecording = false;
+        let streamName = null;
+
+        async function initWebcam() {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                document.getElementById('video').srcObject = mediaStream;
+            } catch (err) {
+                console.error('Error accessing webcam: ', err);
+                document.getElementById('status').innerText = 'Error accessing webcam. Please check your device settings.';
+            }
+        }
+
+        function startRecording() {
+            if (!mediaStream) {
+                alert('Webcam not initialized.');
+                return;
+            }
+
+            document.getElementById('startButton').disabled = true;
+            document.getElementById('stopButton').disabled = false;
+            document.getElementById('status').innerText = 'Recording...';
+
+            chunks = []; // Clear previous chunks
+            chunkNumber = 0;
+            streamName = `${Date.now()}`; // Unique stream name for this recording
+            mediaRecorder = new MediaRecorder(mediaStream, { mimeType: 'video/webm; codecs=vp8' });
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    sendChunk(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                document.getElementById('status').innerText = 'Recording stopped.';
+            };
+
+            mediaRecorder.start(chunkDuration); // Start recording with chunking
+            isRecording = true;
+            setTimeout(recordChunks, chunkDuration);
+        }
+
+        function recordChunks() {
+            if (isRecording && mediaRecorder.state === "recording") {
+                mediaRecorder.requestData(); // Request the current data
+                setTimeout(recordChunks, chunkDuration); // Schedule the next chunk
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                isRecording = false;
+                mediaRecorder.stop();
+                document.getElementById('startButton').disabled = false;
+                document.getElementById('stopButton').disabled = true;
+            }
+        }
+
+        function sendChunk(chunk) {
+            const formData = new FormData();
+            formData.append('file', chunk);
+
+            fetch('/api/upload', {
+                method: 'PUT',
+                headers: {
+                    'x-stream-name': streamName,
+                    'x-chunk-number': chunkNumber
+                },
+                body: chunk
+            }).then(response => {
+                if (response.ok) {
+                    console.log(`Chunk ${chunkNumber} uploaded successfully.`);
+                } else {
+                    console.error('Error uploading chunk.');
+                }
+            }).catch(error => {
+                console.error('Error uploading chunk:', error);
+            });
+
+            chunkNumber++;
+        }
+
+        window.onload = initWebcam;
+    </script>
+</body>
+</html>

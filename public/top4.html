@@ -1,0 +1,160 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Source Example</title>
+</head>
+<body>
+    <video id="videoElement" controls width="600"></video>
+    <script>
+        // Check for Media Source Extensions support
+        if ('MediaSource' in window && MediaSource.isTypeSupported('video/mp4; codecs="avc1.64001e, mp4a.40.2"')) {
+            var video = document.getElementById('videoElement');
+            var mediaSource = new MediaSource();
+            video.src = URL.createObjectURL(mediaSource);
+
+            mediaSource.addEventListener('sourceopen', function () {
+                var audioSourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
+                var videoSourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.64001e"');
+
+                function fetchSegment(url) {
+                    return fetch(url).then(function(response) {
+                        return response.arrayBuffer();
+                    });
+                }
+
+                function appendAudioSegment(segmentUrls) {
+                    if (segmentUrls.length === 0) {
+                        return Promise.resolve();
+                    }
+
+                    return fetchSegment(segmentUrls[0]).then(function(audioSegment) {
+                        audioSourceBuffer.appendBuffer(audioSegment);
+                        return new Promise(function(resolve) {
+                            audioSourceBuffer.addEventListener('updateend', function updateend() {
+                                audioSourceBuffer.removeEventListener('updateend', updateend);
+                                resolve();
+                            });
+                        });
+                    }).then(function() {
+                        return appendAudioSegment(segmentUrls.slice(1));
+                    });
+                }
+
+                function appendVideoSegment(segmentUrls) {
+                    if (segmentUrls.length === 0) {
+                        return Promise.resolve();
+                    }
+
+                    return fetchSegment(segmentUrls[0]).then(function(videoSegment) {
+                        videoSourceBuffer.appendBuffer(videoSegment);
+                        return new Promise(function(resolve) {
+                            videoSourceBuffer.addEventListener('updateend', function updateend() {
+                                videoSourceBuffer.removeEventListener('updateend', updateend);
+                                resolve();
+                            });
+                        });
+                    }).then(function() {
+                        return appendVideoSegment(segmentUrls.slice(1));
+                    });
+                }
+
+                var audioSegmentUrls = [
+                    'http://server.com/audio/segment0.mp4',
+                    'http://server.com/audio/segment1.mp4',
+                    'http://server.com/audio/segment2.mp4'
+                    // Add more audio segment URLs here
+                ];
+
+                var videoSegmentUrls = [
+                    'http://server.com/video/segment0.mp4',
+                    'http://server.com/video/segment1.mp4',
+                    'http://server.com/video/segment2.mp4'
+                    // Add more video segment URLs here
+                ];
+
+                appendAudioSegment(audioSegmentUrls).then(function() {
+                    console.log('All audio segments appended');
+                }).catch(function(error) {
+                    console.error('Error appending audio segments:', error);
+                });
+
+                appendVideoSegment(videoSegmentUrls).then(function() {
+                    console.log('All video segments appended');
+                }).catch(function(error) {
+                    console.error('Error appending video segments:', error);
+                });
+            });
+        } else {
+            console.error('Media Source Extensions not supported.');
+        }
+    </script>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Source Example</title>
+</head>
+<body>
+    <video id="videoElement" controls width="600"></video>
+    <script>
+        // Check for Media Source Extensions support
+        if ('MediaSource' in window && MediaSource.isTypeSupported('video/mp4; codecs="avc1.64001e, mp4a.40.2"')) {
+            var video = document.getElementById('videoElement');
+            var mediaSource = new MediaSource();
+            video.src = URL.createObjectURL(mediaSource);
+
+            mediaSource.addEventListener('sourceopen', function () {
+                var audioSourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
+                var videoSourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.64001e"');
+
+                function fetchSegment(url) {
+                    return fetch(url).then(function(response) {
+                        return response.arrayBuffer();
+                    });
+                }
+               
+
+                function appendVideoSegment(segmentUrls) {
+                    if (segmentUrls.length === 0) {
+                        return Promise.resolve();
+                    }
+
+                    return fetchSegment(segmentUrls[0]).then(function(videoSegment) {
+                        videoSourceBuffer.appendBuffer(videoSegment);
+                        return new Promise(function(resolve) {
+                            videoSourceBuffer.addEventListener('updateend', function updateend() {
+                                videoSourceBuffer.removeEventListener('updateend', updateend);
+                                resolve();
+                            });
+                        });
+                    }).then(function() {
+                        return appendVideoSegment(segmentUrls.slice(1));
+                    });
+                }
+
+
+                var videoSegmentUrls = [
+                    '/video'
+                ];
+
+              
+
+                appendVideoSegment(videoSegmentUrls).then(function() {
+                    console.log('All video segments appended');
+                }).catch(function(error) {
+                    console.error('Error appending video segments:', error);
+                });
+            });
+        } else {
+            console.error('Media Source Extensions not supported.');
+        }
+    </script>
+</body>
+</html>
+

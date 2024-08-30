@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload</title>
+</head>
+<body>
+    <input type="file" id="fileInput" accept="video/mp4">
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const chunkSize = 1024 * 1024; // 1MB chunks
+            let offset = 0;
+
+            function sendChunk() {
+                const chunk = file.slice(offset, offset + chunkSize);
+                const formData = new FormData();
+                formData.append('chunk', chunk);
+                formData.append('fileName', file.name);
+                formData.append('fileSize', file.size);
+                formData.append('offset', offset);
+
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                }).then(response => response.json())
+                .then(data => {
+                    if (data.done) {
+                        console.log('File upload complete');
+                    } else {
+                        offset += chunkSize;
+                        if (offset < file.size) {
+                            sendChunk();
+                        }
+                    }
+                }).catch(error => {
+                    console.error('Error uploading chunk:', error);
+                });
+            }
+
+            sendChunk();
+        });
+
+    </script>
+</body>
+</html>

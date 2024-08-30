@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Webcam to Express Server</title>
+</head>
+<body>
+    <video id="localVideo" width="320" height="240" autoplay></video>
+    <video id="remoteVideo" width="320" height="240" controls></video>
+    <button id="startBtn">Start Streaming</button>
+    <button id="stopBtn">Stop Streaming</button>
+
+    <script>
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        let mediaRecorder;
+        let intervalId;
+        let mediaSource;
+        let sourceBuffer;
+
+        async function startStreaming() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            localVideo.srcObject = stream;
+
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
+
+            mediaRecorder.ondataavailable = async (event) => {
+                if (event.data.size > 0) {
+                    await fetch('http://localhost:3000/upload', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'video/webm',
+                        },
+                        body: event.data,
+                    });
+                }
+            };
+
+            mediaRecorder.start(100); // Record in 100ms chunks
+
+            mediaSource = new MediaSource();
+            remoteVideo.src = URL.createObjectURL(mediaSource);
+
+            mediaSource.addEventListener('sourceopen', handleSourceOpen, false);
+            mediaSource.addEventListener('sourceended', handleSourceEnded, false);
+            mediaSource.addEventListener('sourceclose', handleSourceClose, false);
+
+            intervalId = setInterval(async () => {
+                const response = await fetch('http://localhost:3000/video');
+                if (response.ok) {
+                    const videoBlob = await response.blob();
+                    const arrayBuffer = await videoBlob.arrayBuffer();
+                    if (sourceBuffer && mediaSource.readyState === 'open') {
+                        sourceBuffer.appendBuffer(arrayBuffer);
+                    }
+                }
+            }, 1000); // Fetch the video every second
+        }
+
+        function handleSourceOpen() {
+            sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp8"');
+        }
+
+        function handleSourceEnded() {
+            console.log('MediaSource ended');
+            clearInterval(intervalId);
+        }
+
+        function handleSourceClose() {
+            console.log('MediaSource closed');
+        }
+
+        startBtn.addEventListener('click', startStreaming);
+
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+            }
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+            if (mediaSource.readyState === 'open') {
+                mediaSource.endOfStream();
+            }
+            remoteVideo.src = '';
+        });
+    </script>
+</body>
+</html>

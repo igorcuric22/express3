@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Video with MediaSource</title>
+</head>
+<body>
+
+<video id="myVideo" width="640" height="360" controls></video>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const videoElement = document.getElementById('myVideo');
+
+  // Check if MediaSource is supported by the browser
+  if (window.MediaSource) {
+    // Create a new MediaSource object
+    const mediaSource = new MediaSource();
+
+    // Event listener for when the MediaSource is open and ready
+    mediaSource.addEventListener('sourceopen', function() {
+      // Create a new source buffer
+      const sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
+
+      const mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+      console.log(MediaSource.isTypeSupported(mimeCodec)) // true or false
+
+      // Fetch the video segment and append it to the buffer (example purposes)
+      let start=0,end=1024;
+      fetch('/video', {
+                headers: {
+                    'Range': `bytes=${start}-${end}`
+                }})
+        .then(response => response.arrayBuffer())
+        .then(data => {
+          sourceBuffer.appendBuffer(data);
+        });
+    });
+
+    // Attach the MediaSource to the video element
+    videoElement.src = URL.createObjectURL(mediaSource);
+  } else {
+    console.error('MediaSource API is not supported');
+  }
+});
+</script>
+
+</body>
+</html>

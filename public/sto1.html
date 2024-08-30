@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Stream to Server</title>
+</head>
+<body>
+    <video id="video" autoplay></video>
+    <script>
+        // Get the video element
+        const video = document.getElementById('video');
+
+        // Function to start streaming
+        async function startStreaming() {
+            // Access the webcam
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            video.srcObject = stream;
+
+            // Function to send data chunks
+            const sendChunk = async (data) => {
+                try {
+                    const formData = new FormData();
+                    formData.append('file', data);
+                    await fetch('http://localhost:3000/upload', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/octet-stream'
+                        },
+                        body:formData
+                    });
+                } catch (error) {
+                    console.error('Error sending data:', error);
+                }
+            };
+
+            // Create a MediaRecorder to capture the stream in chunks
+            const options = { mimeType: 'video/webm; codecs=vp9' };
+            const mediaRecorder = new MediaRecorder(stream,stream);
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    sendChunk(event.data);
+                }
+            };
+
+            // Start recording and sending data in chunks
+            mediaRecorder.start(100); // Send data every 100ms
+        }
+
+        // Start streaming when the page loads
+        window.onload = startStreaming;
+    </script>
+</body>
+</html>

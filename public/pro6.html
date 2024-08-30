@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP4 ArrayBuffer to Video with MediaSource</title>
+</head>
+<body>
+    <video id="videoPlayer" controls></video>
+    <script>
+        async function fetchVideo(url) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.arrayBuffer();
+        }
+
+        function isValidChunk(chunk) {
+            // Placeholder for any additional validation logic
+            return chunk && chunk.byteLength > 0;
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const videoElement = document.getElementById('videoPlayer');
+            const videoUrl = '/video'; // Replace with your video URL
+
+            const mediaSource = new MediaSource();
+            videoElement.src = URL.createObjectURL(mediaSource);
+
+            mediaSource.addEventListener('sourceopen', async () => {
+                let sourceBuffer;
+                try {
+                    sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
+                } catch (e) {
+                    console.error('Error creating SourceBuffer:', e);
+                    return;
+                }
+
+                try {
+                    const arrayBuffer = await fetchVideo(videoUrl);
+                    const chunkSize = 512 * 1024; // 512 KB chunk size
+                    let offset = 0;
+
+                    function appendChunk() {
+                        if (offset >= arrayBuffer.byteLength) {
+                            if (mediaSource.readyState === 'open' && !sourceBuffer.updating) {
+                                console.log('All chunks appended. Ending media source');
+                                mediaSource.endOfStream();
+                            }
+                            return;
+                        }
+
+                        if (!sourceBuffer.updating && mediaSource.readyState === 'open') {
+                            const chunk = arrayBuffer.slice(offset, offset + chunkSize);
+                            offset += chunkSize;
+
+                            if (isValidChunk(chunk)) {
+                                console.log(`Appending chunk: ${Math.ceil(offset / chunkSize)} of size ${chunk.byteLength}`);
+                                try {
+                                    sourceBuffer.appendBuffer(chunk);
+                                } catch (error) {
+                                    console.error('Error appending chunk:', error);
+                                    return;
+                                }
+                            } else {
+                                console.error('Invalid chunk detected, stopping append.');
+                                return;
+                            }
+                        }
+                    }
+
+                    sourceBuffer.addEventListener('updateend', appendChunk);
+                    sourceBuffer.addEventListener('error', (e) => console.error('SourceBuffer error:', e));
+                    mediaSource.addEventListener('error', (e) => console.error('MediaSource error:', e));
+
+                    appendChunk(); // Start appending chunks
+                } catch (error) {
+                    console.error('Error fetching or appending video:', error);
+                }
+            });
+
+            mediaSource.addEventListener('sourceclose', () => {
+                console.log('MediaSource closed');
+            });
+
+            mediaSource.addEventListener('sourceended', () => {
+                console.log('MediaSource ended');
+            });
+        });
+    </script>
+</body>
+</html>
+

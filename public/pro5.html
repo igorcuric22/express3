@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP4 ArrayBuffer to Video</title>
+</head>
+<body>
+    <video id="videoPlayer" controls></video>
+    <script>
+        async function fetchArrayBuffer(url) {
+            const response = await fetch(url);
+            return response.arrayBuffer();
+        }
+
+        // Function to convert ArrayBuffer to Blob and set it as video source
+        function playVideoFromArrayBuffer(videoElement, arrayBuffer) {
+            const blob = new Blob([arrayBuffer], { type: 'video/mp4' });
+            const url = URL.createObjectURL(blob);
+            videoElement.src = url;
+        }
+
+        // Usage example with a predefined URL
+        document.addEventListener('DOMContentLoaded', async () => {
+            const videoElement = document.getElementById('videoPlayer');
+            const videoUrl = '/video'; // Replace with your video URL
+
+            try {
+                const arrayBuffer = await fetchArrayBuffer(videoUrl);
+                playVideoFromArrayBuffer(videoElement, arrayBuffer);
+            } catch (error) {
+                console.error('Error fetching or playing video:', error);
+            }
+        });
+    </script>
+</body>
+</html>

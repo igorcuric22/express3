@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP4 Stream Example</title>
+</head>
+<body>
+    <video id="videoPlayer" controls></video>
+    <script>
+//         async function fetchArrayBuffer(url) {
+//     const response = await fetch(url);
+//     const arrayBuffer = await response.arrayBuffer();
+//     return arrayBuffer;
+// }
+
+// function arrayBufferToStream(arrayBuffer) {
+//     const uint8Array = new Uint8Array(arrayBuffer);
+//     let position = 0;
+//     const readableStream = new ReadableStream({
+//         start(controller) {
+//             function push() {
+//                 if (position >= uint8Array.length) {
+//                     controller.close();
+//                     return;
+//                 }
+
+//                 const chunkSize = 1024 * 64; // 64KB chunks
+//                 const chunk = uint8Array.slice(position, position + chunkSize);
+//                 position += chunkSize;
+
+//                 controller.enqueue(chunk);
+//                 push();
+//             }
+
+//             push();
+//         }
+//     });
+
+//     return readableStream;
+// }
+
+// async function playVideoFromStream(videoElement, url) {
+//     const arrayBuffer = await fetchArrayBuffer(url);
+
+//     console.log(arrayBuffer);
+
+//     const stream = arrayBufferToStream(arrayBuffer);
+//     const mediaSource = new MediaSource();
+
+//     videoElement.src = URL.createObjectURL(mediaSource);
+
+//     mediaSource.addEventListener('sourceopen', () => {
+//         const sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
+//         const reader = stream.getReader();
+
+//         reader.read().then(function process({ done, value }) {
+//             if (done) {
+//                 mediaSource.endOfStream();
+//                 return;
+//             }
+
+//             sourceBuffer.appendBuffer(value);
+//             return reader.read().then(process);
+//         });
+//     });
+// }
+
+// // Usage example:
+// document.addEventListener('DOMContentLoaded', () => {
+//     const videoElement = document.getElementById('videoPlayer');
+//     const videoUrl = '/video'; // Replace with your video URL
+//     playVideoFromStream(videoElement, videoUrl);
+// });
+
+async function fetchArrayBuffer(url) {
+    console.log(url);
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    return arrayBuffer;
+}
+
+function arrayBufferToStream(arrayBuffer) {
+    const uint8Array = new Uint8Array(arrayBuffer);
+    console.log(uint8Array);
+
+    let position = 0;
+    const readableStream = new ReadableStream({
+        start(controller) {
+            function push() {
+                if (position >= uint8Array.length) {
+                    controller.close();
+                    return;
+                }
+
+                const chunkSize = 1024 * 64; // 64KB chunks
+                const chunk = uint8Array.slice(position, position + chunkSize);
+                position += chunkSize;
+
+                controller.enqueue(chunk);
+                push();
+            }
+
+            push();
+        }
+    });
+
+    return readableStream;
+}
+
+async function playVideoFromStream(videoElement, url) {
+    const arrayBuffer = await fetchArrayBuffer(url);
+    console.log(arrayBuffer);
+
+
+    const stream = arrayBufferToStream(arrayBuffer);
+    const mediaSource = new MediaSource();
+
+    videoElement.src = URL.createObjectURL(mediaSource);
+
+    mediaSource.addEventListener('sourceopen', () => {
+        const sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
+        const reader = stream.getReader();
+
+        const processNextChunk = () => {
+            reader.read().then(({ done, value }) => {
+                if (done) {
+                    if (mediaSource.readyState === 'open') {
+                        mediaSource.endOfStream();
+                    }
+                    return;
+                }
+
+                sourceBuffer.appendBuffer(value);
+            });
+        };
+
+        sourceBuffer.addEventListener('updateend', processNextChunk);
+
+        processNextChunk();
+    });
+}
+
+// Usage example:
+document.addEventListener('DOMContentLoaded', () => {
+    const videoElement = document.getElementById('videoPlayer');
+    const videoUrl = '/video'; // Replace with your video URL
+    playVideoFromStream(videoElement, videoUrl);
+});
+
+
+    </script>
+</body>
+</html>

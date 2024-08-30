@@ -1,0 +1,72 @@
+<html>
+
+ <head>
+  <meta charset="utf-8">
+  <script>
+   var mimeType_video = "video/mp4";
+   var codecs_video = "avc1.4D401F";
+   var mimeCodec_video = mimeType_video + ';codecs = "' + codecs_video + '"';
+
+
+   var mediaSource = new MediaSource();
+   var sourceBuffer_vedio;
+   var segNum = 1;
+   var maxSegNum = 100;
+
+   function startup() {
+    if(MediaSource.isTypeSupported(mimeCodec_video)) {
+     mediaSource.addEventListener('sourceopen', sourceOpen, false);
+     video = document.querySelector('video');
+     video.src = URL.createObjectURL(mediaSource);
+    } else {
+     console.error('Unsupported MIME type or codec: ', mimeCodec_video);
+    }
+   }
+
+   function sourceOpen(e) {
+    sourceBuffer_vedio = mediaSource.addSourceBuffer(mimeCodec_video);
+
+    fetch("mp4/output/video/avc1/init.mp4", function(buf) {
+     sourceBuffer_vedio.appendBuffer(buf);
+    });
+
+    sourceBuffer_vedio.addEventListener('updateend', loadSegment);
+   };
+
+   function loadSegment() {
+    if(segNum < maxSegNum) {
+     getVedioSegment(segNum);
+     segNum++;
+    }
+   }
+
+   function getVedioSegment(segNum) {
+    fetch("mp4/output/video/avc1/seg-" + segNum + ".m4s", function(buf) {
+     console.log("mp4/output/video/avc1/seg-" + segNum + ".m4s");
+     sourceBuffer_vedio.appendBuffer(buf);
+    });
+
+   }
+
+   function fetch(url, cb) {
+    console.log(url);
+    var xhr = new XMLHttpRequest;
+    xhr.open('get', url);
+    xhr.responseType = 'arraybuffer';
+    xhr.onload = function() {
+     cb(xhr.response);
+    };
+    xhr.send();
+   };
+
+   window.onload = function() {
+    startup();
+   }
+  </script>
+ </head>
+
+ <body>
+  <video controls="" width="100%" height="500px"></video>
+ </body>
+
+</html>

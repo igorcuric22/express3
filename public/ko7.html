@@ -1,0 +1,253 @@
+<!-- <!DOCTYPE html>
+<html>
+<head>
+    <title>Webcam to Express Server (MP4)</title>
+</head>
+<body>
+    <video id="localVideo" width="320" height="240" autoplay></video>
+    <video id="remoteVideo" width="320" height="240" controls></video>
+    <button id="startBtn">Start Streaming</button>
+    <button id="stopBtn">Stop Streaming</button>
+
+    <script>
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        let mediaRecorder;
+        let intervalId;
+
+        async function startStreaming() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            localVideo.srcObject = stream;
+
+            // Specify MIME type for mp4 with H.264 codec
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/mp4; codecs=avc1.4D401F' });
+
+            mediaRecorder.ondataavailable = async (event) => {
+                if (event.data.size > 0) {
+                    await uploadToServer(event.data);
+                }
+            };
+
+            mediaRecorder.start(1000); // Record in 1000ms (1 second) chunks
+
+            intervalId = setInterval(async () => {
+                const response = await fetch('http://localhost:3000/video');
+                const videoBlob = await response.blob();
+                const videoUrl = URL.createObjectURL(videoBlob);
+                remoteVideo.src = videoUrl;
+                remoteVideo.load();
+                remoteVideo.play();
+            }, 10000); // Fetch the video every 10000ms (10 seconds)
+        }
+
+        async function uploadToServer(data) {
+            await fetch('http://localhost:3000/upload', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'video/mp4', // Ensure content type is mp4
+                },
+                body: data,
+            });
+        }
+
+        startBtn.addEventListener('click', startStreaming);
+
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+            }
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        });
+    </script>
+</body>
+</html> -->
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam to Express Server (WebM)</title>
+</head>
+<body>
+    <video id="localVideo" width="320" height="240" autoplay></video>
+    <video id="remoteVideo" width="320" height="240" controls></video>
+    <button id="startBtn">Start Streaming</button>
+    <button id="stopBtn">Stop Streaming</button>
+
+    <script>
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        let mediaRecorder;
+        let intervalId;
+
+        async function startStreaming() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                localVideo.srcObject = stream;
+
+                // Specify MIME type for WebM with VP9 codec
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+
+                mediaRecorder.ondataavailable = async (event) => {
+                    if (event.data.size > 0) {
+                        await uploadToServer(event.data);
+                    }
+                };
+
+                mediaRecorder.start(1000); // Record in 1000ms (1 second) chunks
+
+                intervalId = setInterval(async () => {
+                    const response = await fetch('http://localhost:3000/video');
+                    if (!response.ok) {
+                        console.error('Failed to fetch video chunk');
+                        return;
+                    }
+                    const videoBlob = await response.blob();
+                    const videoUrl = URL.createObjectURL(videoBlob);
+                    remoteVideo.src = videoUrl;
+                    remoteVideo.load();
+                    remoteVideo.play();
+                }, 10000); // Fetch the video every 10000ms (10 seconds)
+            } catch (e) {
+                console.error('Error accessing camera: ', e);
+            }
+        }
+
+        async function uploadToServer(data) {
+            try {
+                await fetch('http://localhost:3000/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'video/webm', // Ensure content type is WebM
+                    },
+                    body: data,
+                });
+            } catch (error) {
+                console.error('Error uploading video:', error);
+            }
+        }
+
+        startBtn.addEventListener('click', startStreaming);
+
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+            }
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        });
+    </script>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam to Express Server (WebM)</title>
+</head>
+<body>
+    <video id="localVideo" width="320" height="240" autoplay></video>
+    <video id="remoteVideo" width="320" height="240" controls></video>
+    <button id="startBtn">Start Streaming</button>
+    <button id="stopBtn">Stop Streaming</button>
+
+    <script>
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        let mediaRecorder;
+        let recordedBlobs = [];
+        let chunkCount = 0;
+        let intervalId;
+
+        async function init() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                localVideo.srcObject = stream;
+
+                const options = { mimeType: 'video/webm; codecs=vp9' };
+                mediaRecorder = new MediaRecorder(stream, options);
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data && event.data.size > 0) {
+                        recordedBlobs.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    if (recordedBlobs.length > 0) {
+                        const blob = new Blob(recordedBlobs, { type: 'video/webm' });
+                        await uploadToServer(blob);
+                        recordedBlobs = [];  // Clear recorded blobs for the next chunk
+                    }
+                };
+            } catch (e) {
+                console.error('Error accessing camera: ', e);
+            }
+        }
+
+        async function startStreaming() {
+            recordedBlobs = [];  // Reset recorded blobs when starting
+            mediaRecorder.start(1000); // Record in 1000ms (1 second) chunks
+
+            intervalId = setInterval(async () => {
+                const response = await fetch('http://localhost:3000/video');
+                if (response.ok) {
+                    const videoBlob = await response.blob();
+                    const videoUrl = URL.createObjectURL(videoBlob);
+                    remoteVideo.src = videoUrl;
+                    remoteVideo.load();
+                    remoteVideo.play();
+                } else {
+                    console.error('Failed to fetch video chunk');
+                }
+            }, 10000); // Fetch the video every 10000ms (10 seconds)
+        }
+
+        async function uploadToServer(blob) {
+            try {
+                await fetch(`http://localhost:3000/upload/example_${chunkCount++}.webm`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'video/webm',
+                    },
+                    body: blob,
+                });
+            } catch (error) {
+                console.error('Error uploading video:', error);
+            }
+        }
+
+        startBtn.addEventListener('click', () => {
+            startStreaming();
+            intervalId = setInterval(() => {
+                mediaRecorder.stop();
+            }, 6000);  // Stop and start recording every 6 seconds
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+            }
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
+
+

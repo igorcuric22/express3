@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Stream to Server</title>
+</head>
+<body>
+    <video id="video" autoplay></video>
+    <button id="capture">Capture and Send</button>
+    <script>
+        const video = document.getElementById('video');
+        const captureButton = document.getElementById('capture');
+        let mediaRecorder;
+        let chunks = [];
+
+        // Access the webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+
+                // Create a MediaRecorder instance
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/mp4' });
+
+                mediaRecorder.ondataavailable = function(event) {
+                    if (event.data.size > 0) {
+                        chunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = function() {
+                    const blob = new Blob(chunks, { type: 'video/mp4' });
+                    sendBlobToServer(blob);
+                    chunks = [];
+                };
+
+                captureButton.addEventListener('click', () => {
+                    if (mediaRecorder.state === 'inactive') {
+                        mediaRecorder.start();
+                        setTimeout(() => {
+                            mediaRecorder.stop();
+                        }, 1000);  // Record for 1 second
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error accessing the webcam: ', error);
+            });
+
+        function sendBlobToServer(blob) {
+            const formData = new FormData();
+            formData.append('video', blob, 'video.mp4');
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>

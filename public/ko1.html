@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Blob with Chunks</title>
+</head>
+<body>
+    <input type="file" id="fileInput" />
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect, false);
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const chunkSize = 1024 * 10; // 1MB chunks
+                const fileSize = file.size;
+                const chunks = [];
+
+                let offset = 0;
+
+                while (offset < fileSize) {
+                    const chunk = file.slice(offset, offset + chunkSize);
+                    chunks.push(chunk);
+                    offset += chunkSize;
+                }
+
+                console.log('Total chunks:', chunks.length);
+
+                // Combine chunks into a single Blob if needed
+                const combinedBlob = new Blob(chunks, { type: 'video/mp4' });
+
+                // Do something with the combined Blob
+                console.log('Combined Blob:', combinedBlob);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Webcam to Express Server</title>
+</head>
+<body>
+    <video id="localVideo" width="320" height="240" autoplay></video>
+    <video id="remoteVideo" width="320" height="240" controls></video>
+    <button id="startBtn">Start Streaming</button>
+    <button id="stopBtn">Stop Streaming</button>
+
+    <script>
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        let mediaRecorder;
+        let intervalId;
+
+        async function startStreaming() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            localVideo.srcObject = stream;
+
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
+
+            mediaRecorder.ondataavailable = async (event) => {
+                if (event.data.size > 0) {
+                    await fetch('http://localhost:3000/upload', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'video/webm',
+                        },
+                        body: event.data,
+                    });
+                }
+            };
+
+            mediaRecorder.start(1000); // Record in 100ms chunks
+
+            intervalId = setInterval(async () => {
+                const response = await fetch('http://localhost:3000/video');
+                const videoBlob = await response.blob();
+                const videoUrl = URL.createObjectURL(videoBlob);
+                remoteVideo.src = videoUrl;
+                remoteVideo.load();
+                remoteVideo.play();
+            }, 10000); // Fetch the video every second
+        }
+
+        startBtn.addEventListener('click', startStreaming);
+
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+            }
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        });
+    </script>
+</body>
+</html>
+

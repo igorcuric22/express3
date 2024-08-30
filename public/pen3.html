@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Camera to Server</title>
+</head>
+<body>
+    <video id="video" width="640" height="480" autoplay></video>
+    <button id="start-record">Start Recording</button>
+    <button id="stop-record">Stop Recording</button>
+    <button id="upload-video">Upload Video</button>
+
+    <script>
+        let mediaRecorder;
+        let recordedBlobs;
+        let mediaSource;
+        let sourceBuffer;
+        let chunkNumber=0;
+
+        const video = document.querySelector('video');
+        const startRecordButton = document.getElementById('start-record');
+        const stopRecordButton = document.getElementById('stop-record');
+        const uploadVideoButton = document.getElementById('upload-video');
+
+        async function init() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true,audio:true });
+            video.srcObject = stream;
+
+            const options = { mimeType: 'video/webm; codecs=vp9' };
+            recordedBlobs = [];
+            mediaRecorder = new MediaRecorder(stream, options);
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    recordedBlobs.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const superBuffer = new Blob(recordedBlobs, { type: 'video/webm' });
+                video.src = window.URL.createObjectURL(superBuffer);
+            };
+        }
+
+        startRecordButton.addEventListener('click', () => {
+            mediaSource = new MediaSource();
+            video.src = window.URL.createObjectURL(mediaSource);
+
+            mediaSource.addEventListener('sourceopen', handleSourceOpen, false);
+            mediaRecorder.start();
+        });
+
+        stopRecordButton.addEventListener('click', () => {
+            mediaRecorder.stop();
+            if (mediaSource.readyState === 'open') {
+                mediaSource.endOfStream();
+            }
+        });
+
+        uploadVideoButton.addEventListener('click', async () => {
+            const blob = new Blob(recordedBlobs, { type: 'video/webm' });
+            const formData = new FormData();
+            formData.append('chunk', chunkNumber);
+
+            await fetch('http://localhost:3000/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            alert('Video uploaded successfully!');
+
+            chunkNumber++;
+        });
+
+        function handleSourceOpen() {
+            sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
+            const blob = new Blob(recordedBlobs, { type: 'video/webm' });
+            const reader = new FileReader();
+            reader.onload = () => {
+                sourceBuffer.addEventListener('updateend', () => {
+                    mediaSource.endOfStream();
+                });
+                sourceBuffer.appendBuffer(new Uint8Array(reader.result));
+            };
+            reader.readAsArrayBuffer(blob);
+        }
+
+        init();
+    </script>
+</body>
+</html>
